@@ -1,15 +1,200 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  PARTNER
+  MEMBER
+}
+
+enum StoryStatus {
+  COMPLETED
+  UPDATING
+  PAUSED
+}
+
+model User {
+  id               String                 @id @default(uuid()) @db.Uuid
+  full_name        String                 @db.VarChar(255)
+  avatar_url       String?                @db.Text
+  email            String?                 @unique @db.VarChar(255)
+  discord_id       String?                @unique @db.VarChar(255)
+  role             UserRole               @default(MEMBER)
+  created_at       DateTime               @default(now()) @db.Timestamp(6)
+
+  stories          Story[]
+  rates            Rate[]
+  reading_histories UserReadingHistory[]
+  favourite_stories UserFavourite[]
+  comments         Comment[]
+  likes            Like[]
+
+  @@map("users")
+}
+
+model Genre {
+  id      String       @id @default(uuid()) @db.Uuid
+  name    String       @unique @db.VarChar(100)
+  slug    String       @unique @db.VarChar(100)
+  stories StoryGenre[]
+
+  @@map("genres")
+}
+
+model Story {
+  id                String      @id @default(uuid()) @db.Uuid
+  user_id           String      @db.Uuid
+  author            String      @db.VarChar(255)
+  name              String      @db.VarChar(255)
+  slug              String      @unique @db.VarChar(255) 
+  cover_url         String?     @db.Text
+  description       String?     @db.Text
+  status            StoryStatus @default(UPDATING)
+  rate_point        Float?      @default(0)
+  rate_count        Int?        @default(0)
+  view_count        Int?        @default(0)
+  created_at        DateTime    @default(now()) @db.Timestamp(6)
+  updated_at        DateTime    @updatedAt @db.Timestamp(6)
+
+  uploader          User        @relation(fields: [user_id], references: [id])
+  chapters          Chapter[]
+  genres            StoryGenre[]
+  rates             Rate[]
+  story_top_weeks   StoryTopWeek[]
+  reading_histories UserReadingHistory[]
+  favourited_by_users UserFavourite[]
+  comments          Comment[]
+
+  @@index([user_id])
+  @@index([status])
+  @@map("stories")
+}
+
+model StoryTopWeek {
+  id          String   @id @default(uuid()) @db.Uuid
+  story_id    String   @db.Uuid
+  week_start  DateTime // ngày thứ 2 tuần đó
+  view_count  Int
+  story       Story    @relation(fields: [story_id], references: [id], onDelete: Cascade)
+
+  @@index([story_id])
+  @@map("story_top_weeks")
+}
+
+model Chapter {
+  id             String   @id @default(uuid()) @db.Uuid
+  story_id       String   @db.Uuid
+  chapter_number Float
+  title          String   @db.VarChar(255)
+  slug           String   @db.VarChar(255)
+  content        String   @db.Text
+  view_count     Int?     @default(0)
+  created_at     DateTime @default(now()) @db.Timestamp(6)
+  updated_at     DateTime @updatedAt @db.Timestamp(6)
+
+  story          Story    @relation(fields: [story_id], references: [id], onDelete: Cascade)
+  reading_history UserReadingHistory[]
+  comments       Comment[]
+
+  @@unique([story_id, chapter_number])
+  @@unique([story_id, slug])
+  @@index([story_id])
+  @@map("chapters")
+}
+
+model StoryGenre {
+  story_id String @db.Uuid
+  genre_id String @db.Uuid
+
+  story    Story @relation(fields: [story_id], references: [id], onDelete: Cascade)
+  genre    Genre @relation(fields: [genre_id], references: [id], onDelete: Cascade)
+
+  @@id([story_id, genre_id])
+  @@map("story_genres")
+}
+
+model Rate {
+  id        String   @id @default(uuid()) @db.Uuid
+  user_id   String   @db.Uuid
+  story_id  String   @db.Uuid
+  rating    Int
+  created_at DateTime @default(now()) @db.Timestamp(6)
+
+  user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  story Story @relation(fields: [story_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, story_id])
+  @@index([story_id])
+  @@map("rates")
+}
+
+model UserReadingHistory {
+  id          String   @id @default(uuid()) @db.Uuid
+  user_id     String   @db.Uuid
+  story_id    String   @db.Uuid
+  chapter_id  String   @db.Uuid
+  last_read_at DateTime @default(now()) @db.Timestamp(6)
+
+  user    User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  story   Story   @relation(fields: [story_id], references: [id], onDelete: Cascade)
+  chapter Chapter @relation(fields: [chapter_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, story_id])
+  @@index([user_id])
+  @@map("user_reading_histories")
+}
+
+model UserFavourite {
+  user_id   String   @db.Uuid
+  story_id  String   @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamp(6)
+
+  user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  story Story @relation(fields: [story_id], references: [id], onDelete: Cascade)
+
+  @@id([user_id, story_id])
+  @@map("user_favourites")
+}
+
+model Comment {
+  id         String   @id @default(uuid()) @db.Uuid
+  user_id    String   @db.Uuid
+  story_id   String?  @db.Uuid
+  chapter_id String?  @db.Uuid
+  parent_id  String?  @db.Uuid
+  content    String   @db.Text
+  like_count Int?     @default(0)
+  is_edited  Boolean? @default(false)
+  created_at DateTime @default(now()) @db.Timestamp(6)
+
+  user    User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  story   Story?   @relation(fields: [story_id], references: [id], onDelete: Cascade)
+  chapter Chapter? @relation(fields: [chapter_id], references: [id], onDelete: Cascade)
+  parent  Comment? @relation("CommentReplies", fields: [parent_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  replies Comment[] @relation("CommentReplies")
+  likes   Like[]
+
+  @@index([story_id])
+  @@index([chapter_id])
+  @@index([user_id])
+  @@index([parent_id])
+  @@map("comments")
+}
+
+model Like {
+  user_id    String   @db.Uuid
+  comment_id String   @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamp(6)
+
+  user    User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  comment Comment @relation(fields: [comment_id], references: [id], onDelete: Cascade)
+
+  @@id([user_id, comment_id])
+  @@map("likes")
 }
