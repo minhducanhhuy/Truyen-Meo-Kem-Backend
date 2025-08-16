@@ -52,7 +52,7 @@ model Story {
   user_id           String      @db.Uuid
   author            String      @db.VarChar(255)
   name              String      @db.VarChar(255)
-  slug              String      @unique @db.VarChar(255) 
+  slug              String      @unique @db.VarChar(255) // slug suy ra từ name
   cover_url         String?     @db.Text
   description       String?     @db.Text
   status            StoryStatus @default(UPDATING)
