@@ -19,6 +19,12 @@ enum StoryStatus {
   PAUSED
 }
 
+enum SuggestionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
   id               String                 @id @default(uuid()) @db.Uuid
   full_name        String                 @db.VarChar(255)
@@ -48,6 +54,21 @@ model Genre {
   @@map("genres")
 }
 
+model GenreSuggestion {
+  id            String    @id @default(uuid()) @db.Uuid
+  story_id      String    @db.Uuid
+  suggested_name String   @db.VarChar(100)
+  status        SuggestionStatus @default(PENDING)
+  admin_comment String?   @db.Text
+  created_at    DateTime  @default(now()) @db.Timestamp(6)
+  updated_at    DateTime  @updatedAt @db.Timestamp(6)
+
+  story         Story     @relation(fields: [story_id], references: [id])
+
+  @@index([story_id])
+  @@map("genre_suggestions")
+}
+
 model Story {
   id                String      @id @default(uuid()) @db.Uuid
   user_id           String      @db.Uuid
@@ -66,6 +87,7 @@ model Story {
 
   uploader          User        @relation(fields: [user_id], references: [id])
   chapters          Chapter[]
+  genre_suggestions GenreSuggestion[]
   genres            StoryGenre[]
   rates             Rate[]
   story_top_weeks   StoryTopWeek[]
