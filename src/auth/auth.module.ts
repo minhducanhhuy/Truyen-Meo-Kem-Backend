@@ -25,4 +25,6 @@ import { DiscordStrategy } from './strategies/discord.strategy';
   providers: [AuthService, GoogleStrategy, JwtStrategy, DiscordStrategy],
   exports: [AuthService],
 })
-export class AuthMoudle {}
+// src/auth/auth.module.ts
+export class AuthModule {}
+
